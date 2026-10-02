@@ -4,7 +4,15 @@ Created on Fri Oct  2 09:06:04 2026
 
 @author: map25bg
 
-This code is designed to take a .csv file (from csv_extract.py) and
+This code is designed to take a .csv file (from csv_extract.py) and plot it. In three different ways:
+    single variable plot
+    two variable plot
+    multiple cycles plot (requires a folder as input)
+    
+Run file in CLI by 
+%run csv_plot "file_path_or_folder_path_of_data" --mode one_variable or two_variable or cycles --x_col "Y" --y_col "Fz" 
+
+default values for x_col = Y and y_col = COF
 
 Google Gemini Gen AI was used to complete this code 
 """
@@ -15,7 +23,7 @@ import matplotlib.pyplot as plt
 import os
 import argparse
 import glob
-
+import re
 
 def load_extracted_csv(filepath):
     """loading in the extracted UMT steps, skip the metadata and return a dataframe"""
@@ -62,11 +70,11 @@ def plot_one_variable(file_paths, x_col, y_col):
         
         #labels
         data.set_xlabel(f"{x_col} (Displacement, mm)") ## This needs to be changed depending on inputs
-        data.set_ylabel(f"{y_col} (COF)")               ## so does this please don't forget or you will fuck up you plots
+        data.set_ylabel(f"{y_col}")               ## so does this please don't forget or you will fuck up you plots
         
         data.legend(loc = "upper right")
         
-        plt.title(f"Plot of COF for {filename}")
+        plt.title(f"Plot of {y_col} for {filename}")
         plt.grid(True)
         plt.tight_layout()
         plt.show()
@@ -118,14 +126,58 @@ def plot_two_variables(file_paths, x_col="Y", col1 = "COF", col2 = "Ff"):
         plt.tight_layout()
         plt.show()
         
+def plot_multiple_cycles(file_paths, x_col="Y", y_col="COF"):
+    """overlays plots from multiple files into a single plot"""
+    
+    fig, ax = plt.subplots(figsize=(10,6))
+    files_plotted=0
+    
+    def extract_cycle(path):
+        filename = os.path.basename(path)
+        match = re.search(r'(\d{3})', filename)
+        return int(match.group(1)) if match else filename
+    
+    sorted_paths = sorted(file_paths, key = extract_cycle)
+    
+    for path in sorted_paths:
+        df = load_extracted_csv(path)
+        if df is None or x_col not in df.columns or y_col not in df.columns:
+            print(f"Skipping {path}: Missing the required columns ({x_col}, {y_col})")
+            continue
+        
+        filename = os.path.basename(path)
+        #extract the cycle number (3-digits)
+        match = re.search(r'(\d{3})', filename)
+        if match:
+            label_name = f"Cycle {match.group(1)}"
+        else:
+            label_name = filename
+        
+        ax.plot(df[x_col], df[y_col], label = label_name)
+        files_plotted = files_plotted + 1
+        
+    if files_plotted == 0:
+        print("No valid data files found")
+        plt.close(fig)
+        return
+    
+    ax.set_xlabel(f"{x_col} (Displacement, mm)") #change this if x axis is not displacement
+    ax.set_ylabel(f"{y_col}") # add units here if not using COF
+    ax.set_title(f"Plot of {y_col} for all cycles of {filename}")
+    ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1.0))
+    ax.grid(True)
+    plt.tight_layout()
+    plt.show()
+    
+    
 
 def main():
     parser = argparse.ArgumentParser(description = "Plot extracted UMT data files.")
     
     parser.add_argument("input_path", type = str, help = "path to either a .csv file or a folder containing .csv files")
     
-    parser.add_argument("--mode", choices=["one_variable", "two_variables"], default="one_variable", 
-                        help = "Choose either 'one_variable' or 'two_variables' to plot")
+    parser.add_argument("--mode", choices=["one_variable", "two_variables", "cycles"], default="one_variable", 
+                        help = "Choose either 'one_variable', 'two_variables' or 'cycles' to plot")
     
     parser.add_argument("--x_col", type = str, default="Y", help = "Column selection for x-axis (default: Y, Displacement (mm)")
 
@@ -146,8 +198,12 @@ def main():
         return
     if args.mode == "one_variable":
         plot_one_variable(file_paths, x_col=args.x_col, y_col=args.y_col)
-    else:
+    elif args.mode == "two_variables":
         plot_two_variables(file_paths, x_col=args.x_col, col1 = "COF", col2 = "Ff")
+    else:
+        plot_multiple_cycles(file_paths, x_col=args.x_col, y_col=args.y_col)
+                 
+            
     
 if __name__ == "__main__":
     main()

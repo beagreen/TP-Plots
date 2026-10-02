@@ -5,7 +5,12 @@ Created on Wed Sep 30 13:19:26 2026
 @author: map25bg
 
 This is written to take .csv files from the UMT. Find the second step and save that as a .csv, stripping the rest of the data.
-It is written with the Trial Packages in mind
+It is written with Trial Package in mind
+
+Run file in CLI by 
+%run csv_extract "file_path_or_folder_path_of_data" --output "folder_for_extracted_and_location"
+
+--output default = "extracted_steps"
 
 Google Gemini Gen AI was used to complete this code 
 """
