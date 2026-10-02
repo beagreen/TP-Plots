@@ -6,6 +6,8 @@ Created on Wed Sep 30 13:19:26 2026
 
 This is written to take .csv files from the UMT. Find the second step and save that as a .csv, stripping the rest of the data.
 It is written with the Trial Packages in mind
+
+Google Gemini Gen AI was used to complete this code 
 """
 
 import glob
