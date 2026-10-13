@@ -61,8 +61,12 @@ def plot_one_variable(file_paths, x_col, y_col):
 
         #setup figure
         fig, data = plt.subplots(figsize=(10,6))
-
         filename = os.path.basename(path)
+        base_name = os.path.splitext(filename)[0]
+        
+        png_filename = f"{base_name}_{y_col}"
+        if fig.canvas.manager:
+            fig.canvas.manager.set_window_title(png_filename)
         
         #plot data 
         data.plot(
@@ -74,7 +78,7 @@ def plot_one_variable(file_paths, x_col, y_col):
         
         data.legend(loc = "upper right")
         
-        plt.title(f"Plot of {y_col} for {filename}")
+        plt.title(f"{filename} {y_col} plot")
         plt.grid(True)
         plt.tight_layout()
         plt.show()
@@ -161,6 +165,13 @@ def plot_multiple_cycles(file_paths, x_col="Y", y_col="COF"):
         plt.close(fig)
         return
     
+    #set popout pane filename
+    folder_name = os.path.basename(os.path.dirname(sorted_paths[0]))
+        
+    png_filename = f"{folder_name}_{y_col}_all_cycles"
+    if fig.canvas.manager:
+        fig.canvas.manager.set_window_title(png_filename)
+        
     ax.set_xlabel(f"{x_col} (Displacement, mm)") #change this if x axis is not displacement
     ax.set_ylabel(f"{y_col}") # add units here if not using COF
     ax.set_title(f"Plot of {y_col} for all cycles of {filename}")

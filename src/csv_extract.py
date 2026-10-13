@@ -80,7 +80,7 @@ def process_and_save_umt_csv(filepath, output_folder = "extracted_steps"):
     #save new file
     os.makedirs(output_folder, exist_ok=True)
     base_name = os.path.basename(filepath)
-    output_path = os.path.join(output_folder, f"extracted_{base_name}")
+    output_path = os.path.join(output_folder, f"{base_name}")
     
     with open(output_path, "w") as f:
         f.writelines(new_file_content)
