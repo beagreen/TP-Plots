@@ -56,7 +56,7 @@ def process_and_save_umt_csv(filepath, output_folder = "extracted_steps"):
         if line.startswith("Step No."): #beginning of loop used for all steps
             if current_step is not None:
                 steps[current_step] = step_lines #if current_step has a value save the list of lines (step_lines)
-            current_step = int(line.split("Step No.")[1].strip()) #take the step no. from the .csv as the current_step
+            current_step = int(line.split("Step No.")[1].split(",")[0].strip()) #take the step no. from the .csv as the current_step
             step_lines = [line] #include Step No.# as a header
         elif current_step is not None: #curent line does not start with Step No.#, still append this data eg. column headers
             step_lines.append(line)

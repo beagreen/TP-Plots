@@ -7,10 +7,10 @@ Created on Fri Oct  2 09:06:04 2026
 This code is designed to take a .csv file (from csv_extract.py) and plot it. In three different ways:
     single variable plot
     two variable plot
-    multiple cycles plot (requires a folder as input)
+    multiple files plot (requires a folder as input)
     
 Run file in CLI by 
-%run csv_plot "file_path_or_folder_path_of_data" --mode one_variable or two_variable or cycles --x_col "Y" --y_col "Fz" 
+%run csv_plot "file_path_or_folder_path_of_data" --mode one_variable or two_variable or files --x_col "Y" --y_col "Fz" 
 
 default values for x_col = Y and y_col = COF
 
@@ -24,6 +24,7 @@ import os
 import argparse
 import glob
 import re
+import numpy as np
 
 def load_extracted_csv(filepath):
     """loading in the extracted UMT steps, skip the metadata and return a dataframe"""
@@ -39,17 +40,35 @@ def load_extracted_csv(filepath):
             break
     if header_idx is None:
         return None
+    
+    clean_data = [lines[header_idx]] #create a list of the clean data, starting with just the column headings and add "Cycle" to the header line
+    cycles = []
+    
+    cycle_num  = 1 
+    in_data_block = False
         
-    clean_data = [lines[header_idx]] #create a list of the clean data, starting with just the column headings
     for line in lines[header_idx + 1 :]:
-        if line.startswith("sec") or not line.strip(): #keep going and don't store if the line starts with "sec" and strip any blank lines - so it doesn't return an error when trying to collect the following digits
+        stripped = line.strip()
+        if not stripped or stripped.startswith("sec"):
             continue
-        if line[0].isdigit():
+        
+        if stripped[0].isdigit() or stripped[0] == '-' and ',' in stripped:
             clean_data.append(line)
+            cycles.append(cycle_num)
+            in_data_block = True
+        else:
+            if in_data_block:
+                cycle_num += 1 
+                in_data_block = False 
+
     
     csv_data = "".join(clean_data)
-    return pd.read_csv(io.StringIO(csv_data))
-
+    df = pd.read_csv(io.StringIO(csv_data))
+    
+    df.columns = df.columns.str.strip()
+    df["Cycle"] = cycles
+    
+    return df
 
 def plot_one_variable(file_paths, x_col, y_col):
     """plotting just one variable"""
@@ -130,7 +149,7 @@ def plot_two_variables(file_paths, x_col="Y", col1 = "COF", col2 = "Ff"):
         plt.tight_layout()
         plt.show()
         
-def plot_multiple_cycles(file_paths, x_col="Y", y_col="COF"):
+def plot_multiple_files(file_paths, x_col="Y", y_col="COF"):
     """overlays plots from multiple files into a single plot"""
     
     fig, ax = plt.subplots(figsize=(10,6))
@@ -168,17 +187,52 @@ def plot_multiple_cycles(file_paths, x_col="Y", y_col="COF"):
     #set popout pane filename
     folder_name = os.path.basename(os.path.dirname(sorted_paths[0]))
         
-    png_filename = f"{folder_name}_{y_col}_all_cycles"
+    png_filename = f"{folder_name}_{y_col}_all_files"
     if fig.canvas.manager:
         fig.canvas.manager.set_window_title(png_filename)
         
     ax.set_xlabel(f"{x_col} (Displacement, mm)") #change this if x axis is not displacement
     ax.set_ylabel(f"{y_col}") # add units here if not using COF
-    ax.set_title(f"Plot of {y_col} for all cycles of {filename}")
+    ax.set_title(f"Plot of {y_col} for EXPLAIN")
     ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1.0))
     ax.grid(True)
     plt.tight_layout()
     plt.show()
+    
+def plot_multiple_cycles_from_one_file(file_paths, x_col, y_col):
+    for path in file_paths:
+        df = load_extracted_csv(path)
+        if df is None or x_col not in df.columns or y_col not in df.columns:
+            print(f"Skipping {path}: Missing the required colummns ({x_col}, {y_col})")
+            continue
+        
+        #setup figure
+        fig, ax = plt.subplots(figsize=(10,6))
+        filename = os.path.basename(path)
+        base_name = os.path.splitext(filename)[0]
+        
+        png_filename = f"{base_name}_{y_col}_cycles"
+        if fig.canvas.manager:
+            fig.canvas.manager.set_window_title(png_filename)
+            
+        num_cycles = df['Cycle'].nunique()
+        if num_cycles > 10: # won't make unique colours if more than 10 cycles - will now
+            colors = plt.cm.tab20(np.linspace(0,1,num_cycles)) 
+            ax.set_prop_cycles(color=colors)
+            
+            
+        for cycle_id, group in df.groupby('Cycle', sort=False):
+            ax.plot(group[x_col],
+                    group[y_col],
+                    label = f"Cycle {cycle_id:03d}")
+        
+        ax.set_xlabel(f"{x_col} (Displacement, mm)") #change this if x axis is not displacement
+        ax.set_ylabel(f"{y_col}") # add units here if not using COF
+        ax.set_title(f"Plot of {y_col} for WC ball at 15N, 1mm/s")
+        ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1.0))
+        ax.grid(True)
+        plt.tight_layout()
+        plt.show()
     
     
 
@@ -187,8 +241,8 @@ def main():
     
     parser.add_argument("input_path", type = str, help = "path to either a .csv file or a folder containing .csv files")
     
-    parser.add_argument("--mode", choices=["one_variable", "two_variables", "cycles"], default="one_variable", 
-                        help = "Choose either 'one_variable', 'two_variables' or 'cycles' to plot")
+    parser.add_argument("--mode", choices=["one_variable", "two_variables", "files", "cycles"], default="one_variable", 
+                        help = "Choose either 'one_variable', 'two_variables', 'files', or 'cycles' to plot")
     
     parser.add_argument("--x_col", type = str, default="Y", help = "Column selection for x-axis (default: Y, Displacement (mm)")
 
@@ -207,12 +261,15 @@ def main():
     if not file_paths:
         print(f"No CSV files found matching: {args.input_path}")
         return
+    
     if args.mode == "one_variable":
         plot_one_variable(file_paths, x_col=args.x_col, y_col=args.y_col)
     elif args.mode == "two_variables":
         plot_two_variables(file_paths, x_col=args.x_col, col1 = "COF", col2 = "Ff")
+    elif args.mode == "files":
+        plot_multiple_files(file_paths, x_col=args.x_col, y_col=args.y_col)
     else:
-        plot_multiple_cycles(file_paths, x_col=args.x_col, y_col=args.y_col)
+        plot_multiple_cycles_from_one_file(file_paths, x_col=args.x_col, y_col=args.y_col)
                  
             
     
