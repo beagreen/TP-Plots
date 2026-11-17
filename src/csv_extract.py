@@ -66,7 +66,9 @@ def process_and_save_umt_csv(filepath, output_folder = "extracted_steps"):
         steps[current_step] = step_lines
      
     #filter for only the 'action' steps (2, 5, 8, . . )
+
     action_lines_step_number = [s for s in steps.keys() if (s-2) % 3 == 0]
+
     
     if not action_lines_step_number:
         print(f"No target steps (2, 5, 8, . . . ) found in {filepath}")

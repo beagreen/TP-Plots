@@ -218,17 +218,23 @@ def plot_multiple_cycles_from_one_file(file_paths, x_col, y_col):
         num_cycles = df['Cycle'].nunique()
         if num_cycles > 10: # won't make unique colours if more than 10 cycles - will now
             colors = plt.cm.tab20(np.linspace(0,1,num_cycles)) 
-            ax.set_prop_cycles(color=colors)
+            ax.set_prop_cycle(color=colors)
             
-            
-        for cycle_id, group in df.groupby('Cycle', sort=False):
-            ax.plot(group[x_col],
-                    group[y_col],
+        for idx, (cycle_id, group) in enumerate(df.groupby('Cycle', sort=False)):
+            #if more than 25 cycles then only put every 10th in the legend and first and lasy
+            if num_cycles>25 and not (idx==0 or idx==num_cycles-1 or cycle_id % 10 ==0):
+                ax.plot(group[x_col],
+                    group[y_col], 
+                    label = "_nolegend_")
+            else:
+                ax.plot(group[x_col],
+                    group[y_col], 
                     label = f"Cycle {cycle_id:03d}")
+            
         
         ax.set_xlabel(f"{x_col} (Displacement, mm)") #change this if x axis is not displacement
         ax.set_ylabel(f"{y_col}") # add units here if not using COF
-        ax.set_title(f"Plot of {y_col} for WC ball at 15N, 1mm/s")
+        ax.set_title(f"Plot of {y_col} for {filename}")
         ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1.0))
         ax.grid(True)
         plt.tight_layout()
